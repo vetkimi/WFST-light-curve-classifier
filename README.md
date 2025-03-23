@@ -13,7 +13,7 @@ This GitHub repository contains the main code used for building and training the
 > - Some parameters are not well named, which could cause confusion when someone tries to adjust them.
 > - Certain paths need to be updated to run the code successfully.
 >
-> The .py file is complete and ready for use if you want to run this model on your own data. Just remember to prepare your data in the correct format. We will continuously update this repository to make it more user-friendly. 
+> The .py file is complete and ready for use if you want to run this model on your own data. Just remember to prepare your data in the correct format （which can be find through the corresponding paper）. We will continuously update this repository to make it more user-friendly. 
 
 
 
