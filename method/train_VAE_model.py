@@ -98,41 +98,71 @@ class VAE(keras.Model):
         self.decoder = decoder
         self.sampler = Sampler()
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
-        self.reconstruction_loss_tracker = keras.metrics.Mean(
-            name="reconstruction_loss")
+        self.reconstruction_loss_tracker = keras.metrics.Mean(name="reconstruction_loss")
         self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
         self.classification_tracker = keras.metrics.Mean(name="classification_loss")
+
     @property
     def metrics(self):
-        return [self.total_loss_tracker,
-                self.reconstruction_loss_tracker,
-                self.kl_loss_tracker,
-                self.classification_tracker
-               ]
+        return [
+            self.total_loss_tracker,
+            self.reconstruction_loss_tracker,
+            self.kl_loss_tracker,
+            self.classification_tracker
+        ]
+
     def train_step(self, data):
         with tf.GradientTape() as tape:
-            z_mean, z_log_var, a= self.encoder(data[0][0])
-            b,c,classification_probability = self.encoder(data[0][1])
+            z_mean, z_log_var, a = self.encoder(data[0][0])
+            b, c, classification_probability = self.encoder(data[0][1])
+            
             z = self.sampler(z_mean, z_log_var)
-            reconstruction = decoder(z)
+            reconstruction = self.decoder(z)
             
             reconstruction_loss = tf.reduce_mean(
                 tf.reduce_sum(
                     keras.losses.mse(data[1][0], reconstruction)
                 )
             )
-            """
-            reconstruction_loss = tf.reduce_mean(
-                keras.losses.mse(data[1][0],reconstruction)
-            )*reconstruction_weight
-            """
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
-            classification_loss = keras.losses.categorical_crossentropy(data[1][1], classification_probability)*classification_weight
+            
+            classification_loss = keras.losses.categorical_crossentropy(data[1][1], classification_probability) * classification_weight
+            
             total_loss = reconstruction_loss + tf.reduce_mean(kl_loss) + tf.reduce_mean(classification_loss)
 
-            
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        self.classification_tracker.update_state(classification_loss)
+        
+        return {
+            "total_loss": self.total_loss_tracker.result(),
+            "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+            "kl_loss": self.kl_loss_tracker.result(),
+            "classification_loss": self.classification_tracker.result()
+        }
+
+    def test_step(self, data):
+        z_mean, z_log_var, a = self.encoder(data[0][0])
+        b, c, classification_probability = self.encoder(data[0][1])
+        
+        z = self.sampler(z_mean, z_log_var)
+        reconstruction = self.decoder(z)
+        
+        reconstruction_loss = tf.reduce_mean(
+            tf.reduce_sum(
+                keras.losses.mse(data[1][0], reconstruction)
+            )
+        )
+        kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+        
+        classification_loss = keras.losses.categorical_crossentropy(data[1][1], classification_probability) * classification_weight
+        
+        total_loss = reconstruction_loss + tf.reduce_mean(kl_loss) + tf.reduce_mean(classification_loss)
+        
         self.total_loss_tracker.update_state(total_loss)
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
         self.kl_loss_tracker.update_state(kl_loss)
@@ -147,31 +177,39 @@ class VAE(keras.Model):
 
 
 #training
+from sklearn.model_selection import train_test_split
+
+# 手动划分训练集和验证集
+train_data, val_data, train_labels, val_labels = train_test_split(
+    [mask_data, mask_labeled_data],
+    [data, labeled_label],
+    test_size=0.2,
+    random_state=42
+)
+
 epochs = 10000
 batch_size = 1024
 vae = VAE(encoder, decoder)
 
 callbacks = [
     keras.callbacks.ModelCheckpoint(
-        "best_model_1.keras", save_best_only=True, monitor="total_loss"
+        "best_model_1.keras", save_best_only=True, monitor="val_total_loss"
     ),
     keras.callbacks.ReduceLROnPlateau(
-        monitor="total_loss", factor=0.5, patience=100, min_lr=0.00001
+        monitor="val_total_loss", factor=0.5, patience=20, min_lr=0.00001
     ),
-    keras.callbacks.EarlyStopping(monitor="total_loss", patience=200, verbose=1, mode='min'),
+    keras.callbacks.EarlyStopping(monitor="val_total_loss", patience=50, verbose=1, mode='min'),
 ]
-vae.compile(
-    optimizer="rmsprop",
-    run_eagerly=True
-)
+
+vae.compile(optimizer="rmsprop")
 
 history = vae.fit(
-    [mask_data, mask_labeled_data],
-    [data, labeled_label],
+    train_data,
+    train_labels,
     batch_size=batch_size,
     epochs=epochs,
     callbacks=callbacks,
-    #validation_data=validation_data,
+    validation_data=(val_data, val_labels),
     verbose=1,
 )
 
