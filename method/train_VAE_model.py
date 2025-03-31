@@ -179,14 +179,6 @@ class VAE(keras.Model):
 #training
 from sklearn.model_selection import train_test_split
 
-# 手动划分训练集和验证集
-train_data, val_data, train_labels, val_labels = train_test_split(
-    [mask_data, mask_labeled_data],
-    [data, labeled_label],
-    test_size=0.2,
-    random_state=42
-)
-
 epochs = 10000
 batch_size = 1024
 vae = VAE(encoder, decoder)
@@ -204,12 +196,12 @@ callbacks = [
 vae.compile(optimizer="rmsprop")
 
 history = vae.fit(
-    train_data,
-    train_labels,
+    [mask_data, mask_labeled_data],
+    [data, labeled_label],
     batch_size=batch_size,
     epochs=epochs,
     callbacks=callbacks,
-    validation_data=(val_data, val_labels),
+    validation_split=0.2,
     verbose=1,
 )
 
