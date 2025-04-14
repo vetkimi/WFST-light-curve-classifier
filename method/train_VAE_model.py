@@ -208,3 +208,19 @@ history = vae.fit(
 #saving model
 vae.encoder.save(f"LSTM_encoder.keras")
 vae.decoder.save(f"LSTM_decoder.keras")
+
+# 找到 val_loss_1 最小值对应的 epoch
+best_val_total_loss = min(history.history['val_total_loss'])
+best_epoch_for_total_loss = history.history['val_total_loss'].index(best_val_total_loss) + 1  # epoch 从 1 开始计数
+print(f"Best val_total_loss: {best_val_total_loss}, achieved at Epoch {best_epoch_for_total_loss}")
+
+# 获取最佳 epoch 对应的其他验证损失值
+best_val_classification_loss = history.history['val_classification_loss'][best_epoch_for_total_loss - 1]  # 索引从 0 开始
+best_val_kl_loss = history.history['val_kl_loss'][best_epoch_for_total_loss - 1]
+best_val_reconstruction_loss = history.history['val_reconstruction_loss'][best_epoch_for_total_loss - 1]
+
+
+print(f"At Epoch {best_epoch_for_total_loss}:")
+print(f"  val_classification_loss: {best_val_classification_loss}")
+print(f"  val_kl_loss: {best_val_kl_loss}")
+print(f"  val_reconstruction_loss: {best_val_reconstruction_loss}")
