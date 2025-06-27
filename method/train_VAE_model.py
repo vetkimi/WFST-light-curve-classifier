@@ -80,7 +80,8 @@ x = keras.layers.LayerNormalization()(x)
 x = layers.GRU(100,return_sequences=True)(x)
 x = layers.Dense(64, activation="relu")(x)
 x = layers.Dense(32, activation="relu")(x)
-decoder_outputs = layers.Dense(num_features, activation="relu")(x)
+#decoder_outputs = layers.Dense(num_features, activation="relu")(x)
+decoder_outputs = layers.Dense(num_features, activation=None)(x)
 decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
 
 class Sampler(layers.Layer):
